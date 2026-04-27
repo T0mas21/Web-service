@@ -4,25 +4,18 @@ from simpleeval import simple_eval
 
 app = Flask(__name__)
 
-AIRPORT_INFO_URL = "https://www.airport-data.com/api/ap_info.json"
-
-WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 
 STOCK_API_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 
 
 def get_airport_temperature(iata):
     try:
-        air_res = requests.get(f"{AIRPORT_INFO_URL}?iata={iata}").json()
-        lat, lon = air_res['latitude'], air_res['longitude']
+        headers = {'User-Agent': 'curl/7.64.1'}
+        url = f"https://wttr.in/{iata}?format=j1"
+        res = requests.get(url, headers=headers).json()
         
-        params = {
-            "latitude": lat,
-            "longitude": lon,
-            "current_weather": "true"
-        }
-        w_res = requests.get(WEATHER_API_URL, params=params).json()
-        return float(w_res['current_weather']['temperature'])
+        temp = res['current_condition'][0]['temp_C']
+        return float(temp)
     except Exception:
         return None
 
@@ -34,12 +27,11 @@ def get_stock_price(symbol):
     except Exception:
         return None
 
-
 def evaluate_expression(expression):
     try:
         return float(simple_eval(expression))
     except Exception:
-        return "Error in expression"
+        return None
 
 
 @app.route('/')
@@ -48,18 +40,16 @@ def handle_query():
     q_stock = request.args.get('queryStockPrice')
     q_temp = request.args.get('queryAirportTemp')
 
+    result = None
+
     if q_eval is not None:
         result = evaluate_expression(q_eval)
     elif q_stock is not None:
         result = get_stock_price(q_stock)
     elif q_temp is not None:
         result = get_airport_temperature(q_temp)
-    else:
-        result = None
 
     return jsonify(result)
 
 if __name__ == "__main__":
     app.run()
-
-    
